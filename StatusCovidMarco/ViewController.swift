@@ -20,9 +20,11 @@ class ViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+        paisBuscarTF.delegate = self
     }
     
+
+//MARK:- Buscar
     func buscar(nombrePais: String){
         let urlString = "\(urlBase)\(nombrePais)"
         print(urlString)
@@ -32,21 +34,78 @@ class ViewController: UIViewController {
             // 3.- Asignarle una tarea a la URLSession
             let tarea = session.dataTask(with: url) { (datos, respuesta, error) in
                 if error != nil {
-                    print("Error : \(error)")
+                    print("Error : \(error?.localizedDescription)")
+                    DispatchQueue.main.async {
+                        let alerta = UIAlertController(title: "Error", message: "Ingresa el nombre de un pais para obtener estadísticas", preferredStyle: .alert)
+                        alerta.addAction(UIAlertAction(title: "Aceptar", style: .default, handler: nil))
+                        self.present(alerta, animated: true)
+                    }
                     return
-                }
+                } // error != nil
                 
                 if let datosSeguros = datos {
-                    let datoString = String(data: datosSeguros, encoding: .utf8)
-                    print(datoString!)
-                    }
-                }
-            
-            
-            //4.-4.- Iniciar la tarea
+                    if let objCovid = self.parsearJSON(datosCovid: datosSeguros) {
+                        //Actualizar UI
+                        print(objCovid)
+                        DispatchQueue.main.async {
+                            self.totales.text = "Suma de casos : \(String(format: "%.0f" ,objCovid.total))"
+                            self.muertes.text = "Total de muertes: \(String(format: "%.0f" ,objCovid.muertes))"
+                            self.recuperados.text = "Recuperados: \(String(format: "%.0f" ,objCovid.recuperados))"
+                            self.cargarImagenBandera(url: objCovid.imagen)
+                            
+                            self.paisBuscarTF.text = ""
+                        }
+                    } //if let objCovid
+                    
+                } //if let datos seguros
+                //4.-4.- Iniciar la tarea
+                
+            }
             tarea.resume()
         }
+    } // func buscar()
+    
+    
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        self.view.endEditing(true)
     }
+    
+    //MARK:- Cargar imagen de API
+    func cargarImagenBandera(url: String) {
+        guard let imagenURL = URL(string: url) else { return }
+
+            // just not to cause a deadlock in UI!
+        DispatchQueue.global().async {
+            guard let imageData = try? Data(contentsOf: imagenURL) else { return }
+
+            let image = UIImage(data: imageData)
+            DispatchQueue.main.async {
+                self.imagenBanderaPais.image = image
+            }
+        }
+    }
+    
+    //MARK:- Parsear JSON
+    func parsearJSON(datosCovid: Data) -> CovidModelo? {
+        let decodificador = JSONDecoder()
+        do {
+            let datosDecodificados = try decodificador.decode(CovidDatos.self, from: datosCovid)
+            let pais = datosDecodificados.country
+            let casosTotales = datosDecodificados.cases
+            let muertes = datosDecodificados.deaths
+            let recuperados = datosDecodificados.recovered
+            let imagenURL = datosDecodificados.countryInfo.flag
+            
+            let objCovid = CovidModelo(nombrePais: pais, imagen: imagenURL, total: casosTotales, muertes: muertes, recuperados: recuperados)
+            
+            return objCovid
+        } catch {
+            print("Error :\(error.localizedDescription)")
+            return nil
+        }
+        
+    }
+    
 
     @IBAction func buscarEstadisitcas(_ sender: UIBarButtonItem) {
         
@@ -56,3 +115,10 @@ class ViewController: UIViewController {
     
 }
 
+extension ViewController: UITextFieldDelegate {
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        print("Buscar")
+        buscar(nombrePais: paisBuscarTF.text!)
+        return true
+    }
+}
