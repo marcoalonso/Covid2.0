@@ -108,7 +108,7 @@ class ViewController: UIViewController {
     
 
     @IBAction func buscarEstadisitcas(_ sender: UIBarButtonItem) {
-        
+        paisBuscarTF.resignFirstResponder()
         buscar(nombrePais: paisBuscarTF.text!)
         
     }
@@ -118,6 +118,7 @@ class ViewController: UIViewController {
 extension ViewController: UITextFieldDelegate {
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         print("Buscar")
+        paisBuscarTF.resignFirstResponder()
         buscar(nombrePais: paisBuscarTF.text!)
         return true
     }
